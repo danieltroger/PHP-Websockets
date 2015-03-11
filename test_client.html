@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html><head><title>WebSocket</title><script src="/uf.js"></script><script src="/phpjs/implode/print_r/echo"></script>
+<style type="text/css">
+html,body {
+	font:normal 0.9em arial,helvetica;
+}
+#log {
+	width:600px;
+	height:300px;
+	border:1px solid #7F9DB9;
+	overflow:auto;
+}
+#msg {
+	width:400px;
+}
+canvas{position:absolute;left:0;}
+</style>
+<script type="text/javascript">
+var socket, username = "",
+errcodes = {
+	"BAD_UNAME":
+	{
+		"taken": "the username is already taken, please select another one.",
+		"invalid": "the username is containing invalid characters, please select a new username that isn't containing any ':'."
+	}
+},canvas,ctx,w,h;
+window.addEventListener("load",function(){
+	canvas = document.querySelector("canvas");
+	ctx = canvas.getContext("2d");
+	canvas.width = window.innerWidth;
+	canvas.height = 35;
+	w = canvas.width;
+	h = canvas.height;
+	ctx.clearRect(0, 0, w, h);
+	draw();
+});
+
+function init() {
+	var host = "ws://"+location.host+":9000/echobot"; // SET THIS TO YOUR SERVER
+	try {
+		socket = new WebSocket(host);
+		log('Connecting...');
+		socket.onopen    = function(msg) {
+			log('Connected.');
+			uname("Please enter an username");
+		};
+		socket.onmessage = function(msg)
+		{
+			var t = msg.data.split(":");
+			if(t.length > 1)
+			{
+				var cmd = t[0],
+				args = ar(t,1,true);
+				paint(msg.data);
+				if(cmd == "BAD_UNAME")
+				{
+					username = "";
+					uname("Error setting username: "+errcodes[cmd][args[0]]);
+				}
+				else if(cmd == "MSG")
+				{
+					log(args[0]+": "+ar(t,2,false));
+				}
+				else if(cmd == "JOIN") log(ar(t,1,false)+" joined.");
+				else if(cmd == "RENAME") log(args[0]+" was renamed to "+args[1]);
+				else if(cmd == "QUIT") log(args[0]+" has quit.");
+			}
+		};
+		socket.onclose   = function(msg) {
+			log("Disconnected - status "+this.readyState);
+			//print_r(msg);
+		};
+	}
+	catch(ex){
+		log(ex);
+	}
+	$("msg").focus();
+}
+function ar(arr,start,retarr)
+{
+	var ret = retarr ? [] : "";
+	for(; start < arr.length; start++)
+	{
+		if(retarr)
+		{
+			ret.push(arr[start]);
+		}
+		else
+		{
+			if(start < (arr.length-1))
+			{
+				ret += arr[start]+":";
+			}
+			else
+			{
+				ret += arr[start];
+			}
+		}
+	}
+	return ret;
+}
+function uname()
+{
+	var q = arguments[0],
+	loop = arguments[1] == false ? false : true;
+	if(!loop)
+	{
+		var u = window.prompt(q,"");
+		if(typeof u == "string" && u.length > 1)
+		{
+			username = u;
+			socket.send('U:'+username);
+		}
+	}
+	else
+	{
+		while(typeof username != "string" || username.length < 1) username = window.prompt(q,"");
+		socket.send('U:'+username);
+	}
+}
+function send(){
+	var txt,msg;
+	txt = $("msg");
+	msg = txt.value;
+	if(!msg) {
+		alert("Message can not be empty");
+		return;
+	}
+	txt.value="";
+	txt.focus();
+	try {
+		socket.send("MSG:"+msg);
+	} catch(ex) {
+		log(ex);
+	}
+}
+function quit(){
+	if (socket != null) {
+		log("Goodbye!");
+		socket.close();
+		socket=null;
+	}
+}
+
+function reconnect() {
+	quit();
+	init();
+}
+function draw()
+{
+	requestAnimationFrame(draw);
+	ctx.fillStyle = 'rgba(255,255,255,0.01)';
+	ctx.fillRect(0, 0, w,h);
+}
+function paint(text)
+{
+	ctx.clearRect(0, 0, w, h);
+	ctx.fillStyle = 'rgb(255,255,255)';
+	ctx.fillRect(0, 0, w,h);
+	ctx.font = "20px Ubuntu";
+	ctx.fillStyle = 'rgb(0,0,0)';
+	ctx.fillText(text, 10, 24);
+}
+// Utilities
+function $(id){ return document.getElementById(id); }
+function log(msg){ $("log").innerHTML+="<br>"+msg; }
+function onkey(event){ if(event.keyCode==13){ send(); } }
+</script>
+
+</head>
+<body onload="init()">
+	<h3>WebSocket v2.00</h3>
+	<div id="log"></div>
+	<input id="msg" type="textbox" onkeypress="onkey(event)"/>
+	<button onclick="send()">Send</button>
+	<button onclick="quit()">Quit</button>
+	<button onclick="reconnect()">Reconnect</button>
+	<button onclick="uname('Please enter a new username',0);">Rename yourself</button>
+	<br /><br />	<canvas></canvas>
+</body>
+</html>
