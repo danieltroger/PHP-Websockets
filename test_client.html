@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><title>WebSocket</title><script src="/uf.js"></script><script src="/phpjs/implode/print_r/echo"></script>
+<html><head><title>WebSocket</title><script src="/uf.js"></script><script src="/phpjs/implode/print_r/echo/htmlspecialchars"></script>
 <style type="text/css">
 html,body {
 	font:normal 0.9em arial,helvetica;
@@ -59,7 +59,7 @@ function init() {
 				}
 				else if(cmd == "MSG")
 				{
-					log(args[0]+": "+ar(t,2,false));
+					log(args[0]+": "+htmlspecialchars(ar(t,2,false)));
 				}
 				else if(cmd == "JOIN") log(ar(t,1,false)+" joined.");
 				else if(cmd == "RENAME") log(args[0]+" was renamed to "+args[1]);
