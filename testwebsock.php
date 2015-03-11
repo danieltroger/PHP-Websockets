@@ -5,21 +5,77 @@ require_once('./websockets.php');
 
 class echoServer extends WebSocketServer {
   //protected $maxBufferSize = 1048576; //1MB... overkill for an echo server, but potentially plausible for other applications.
-  
-  protected function process ($user, $message) {
-    $this->send($user,$message);
+
+  protected function process ($user, $message)
+  {
+    $msg = explode(":",$message);
+    if(sizeof($msg) < 2)
+    {
+      $this->send($user,"BAD_MSG:too_short");
+    }
+    else
+    {
+      $cmd = $msg[0];
+      unset($msg[0]);
+      $args = &$msg;
+      $text = implode(":",$msg);
+      if($cmd == "U")
+      {
+        if(strpos($text,":") !== false)
+        {
+          $this->send($user,"BAD_UNAME:invalid");
+        }
+        else
+        {
+          foreach($this->users as $u)
+          {
+            if($text == $u->nick)
+            {
+              $this->send($user,"BAD_UNAME:taken");
+              return;
+            }
+          }
+          if($user->nick == NULL)
+          {
+            echo "{$text} connected." . PHP_EOL;
+            $user->nick = $text;
+            $nicks = Array();
+            foreach($this->users as $u)
+            {
+              $this->send($u,"JOIN:{$text}");
+              $nicks[] = $u->nick;
+            }
+            $this->send($user,"MSG:SERVER:Currently connected users are: " . implode(", ",$nicks));
+          }
+          else
+          {
+            foreach($this->users as $u)
+            {
+              $this->send($u,"RENAME:{$user->nick}:{$text}");
+            }
+            $user->nick = $text;
+          }
+        }
+      }
+      elseif($cmd == "MSG")
+      {
+        foreach($this->users as $us)
+        {
+          $this->send($us,"MSG:{$user->nick}:" . $text);
+        }
+      }
+    }
   }
-  
+
   protected function connected ($user) {
-    // Do nothing: This is just an echo server, there's no need to track the user.
-    // However, if we did care about the users, we would probably have a cookie to
-    // parse at this step, would be looking them up in permanent storage, etc.
+    $user->nick = NULL;
   }
-  
+
   protected function closed ($user) {
-    // Do nothing: This is where cleanup would go, in case the user had any sort of
-    // open files or other objects associated with them.  This runs after the socket 
-    // has been closed, so there is no need to clean up the socket itself here.
+    foreach($this->users as $u)
+    {
+      $this->send($u,"QUIT:{$user->nick}");
+    }
   }
 }
 
