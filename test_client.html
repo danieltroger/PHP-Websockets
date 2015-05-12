@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><title>WebSocket</title><script src="/uf.js"></script><script src="/phpjs/implode/print_r/echo/htmlspecialchars"></script>
+<html><head><title>WebSocket</title><script src="http://natur-kultur.eu/phpjs.php/date/implode/print_r/echo/htmlspecialchars"></script>
 <style type="text/css">
 html,body {
 	font:normal 0.9em arial,helvetica;
@@ -67,7 +67,17 @@ function init() {
 			}
 		};
 		socket.onclose   = function(msg) {
-			log("Disconnected - status "+this.readyState);
+			if(this.readyState == 3)
+			{
+				log("Error: couldn't connect, retrying in 3 seconds");
+				setTimeout("paint('retrying in 2 seconds')",1000);
+				setTimeout("paint('retrying in 1 second')",2000);
+				setTimeout("paint('reconnecting');reconnect()",3000);
+			}
+			else
+			{
+				log("Disconnected - status "+this.readyState);
+			}
 			//print_r(msg);
 		};
 	}
@@ -123,7 +133,6 @@ function send(){
 	txt = $("msg");
 	msg = txt.value;
 	if(!msg) {
-		alert("Message can not be empty");
 		return;
 	}
 	txt.value="";
@@ -141,7 +150,14 @@ function quit(){
 		socket=null;
 	}
 }
-
+function clean()
+{
+	var l = $("log");
+	while(l.firstChild)
+  {
+    l.removeChild(l.firstChild);
+  }
+}
 function reconnect() {
 	quit();
 	init();
@@ -163,7 +179,32 @@ function paint(text)
 }
 // Utilities
 function $(id){ return document.getElementById(id); }
-function log(msg){ $("log").innerHTML+="<br>"+msg; }
+function log(msg){
+	var l = $("log"),
+	dat = date("Y-m-d H:i:s"),
+	pe = document.createElement("div"),
+	c1 = document.createElement("span"),
+	c2 = document.createElement("span");
+	c1.style.background = "black";
+	c1.style.padding = "0.5%";
+	c1.style.color = "white";
+	c1.style.marginRight = "1%";
+	c1.appendChild(document.createTextNode(dat));
+	pe.appendChild(c1);
+	c2.appendChild(document.createTextNode(msg));
+	pe.appendChild(c2);
+	l.appendChild(pe);
+	setTimeout(scroll,3);
+	}
+	function scroll()
+	{
+		var elem = $("log");
+		if(elem.scrollTop != elem.scrollTopMax)
+		{
+			elem.scrollBy(0,1);
+			setTimeout(scroll,1);
+		}
+	}
 function onkey(event){ if(event.keyCode==13){ send(); } }
 </script>
 
@@ -174,6 +215,8 @@ function onkey(event){ if(event.keyCode==13){ send(); } }
 	<input id="msg" type="textbox" onkeypress="onkey(event)"/>
 	<button onclick="send()">Send</button>
 	<button onclick="quit()">Quit</button>
+	<button onclick="clean();">Clear</button>
+	<button onclick="socket.send('NAMES');">Names</button>
 	<button onclick="reconnect()">Reconnect</button>
 	<button onclick="uname('Please enter a new username',0);">Rename yourself</button>
 	<br /><br />	<canvas></canvas>
